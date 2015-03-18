@@ -1,0 +1,256 @@
+; hackerrack.com practice challenges
+;
+; I wrote this code as practice to learn Clojure (Lisp)
+; and experiment with the functional style .
+;
+; These examples lack the sort of comments I would normally write
+; to explain what is happening in this sort of "write-only" code .
+;
+; Some of the code fragments are the final submissions after several partial
+; or complete rewrites of failed attempts .
+; Some of the code fragments are the result of refactoring less obtuse code 
+; to use complex Clojure "primitives" instead .
+; 
+; Writing terse code (golf) is an intellectual exercise .
+; Clarity should not be sacrificed .
+;
+; Some of the examples have a dummy function "a" .
+; In REPL , I could run (a) to start my sample code for that problem ,
+; then paste the sample input data for that problem .
+;
+;; end of explanations
+   
+; functional programming practice challenges 
+
+; remove odd numbered elements
+(drop 1 (take-nth 2 (concat '(0) (range 1 10))))
+;;
+
+; add the odd number
+(apply + (filter odd? (range 1 10)))
+;;
+
+; repeat each element x times
+(apply concat (map (fn [x] (repeat 3 x)) '(1 2 3 4)))
+;;
+
+; reverse a list
+(defn rev [x] (if (empty? x) () (concat (list (last x))(rev (butlast x)))))
+;;
+
+; absolute value on a list
+(map (fn [x] (if (neg? x) (- 0 x) x)) '(1 -1 -2 2 0))
+;;
+
+; 10 terms of e^x thusly :
+; 1 + x + x2/2! + x3/3! + x4/4! + .......
+; def and defn in Clojure are blocked keywords. The challenge is to accomplish 
+; this without either mutable state, or direct declaration of local variables.
+; (apply + (map (fn [x] (/ (apply * (repeat x 5.0)) (apply * (range 1 (+ x 1))))) (range 0 10)))
+; (let [lines (line-seq (java.io.BufferedReader. *in*))] (map (fn [y] (+ (Float. y) 1)) (rest lines)))
+(let [lines (line-seq (java.io.BufferedReader. *in*))] (map (fn [y] (apply + (map (fn [x] (/ (apply * (repeat x (Float. y))) (apply * (range 1 (+ x 1))))) (range 0 10)))) (rest lines)))
+;; this is the only scheme I can find where Hackerrack actually will
+;; acknowledge the "println" appearing on stdout , with this as the
+;; body of the Input "let lines"
+(letfn [(bb [x] (if (not (empty? x)) (do (println (first x))(bb (rest x)))))] (bb '(1 2 3)))
+; so , the working algorithm combined with the println scheme , ugh
+(let [lines (line-seq (java.io.BufferedReader. *in*))] (letfn [(bb [y] (if (not (empty? y)) (do (println (apply + (map (fn [x] (/ (apply * (repeat x (Float. (first y)))) (apply * (range 1 (+ x 1))))) (range 0 10)))) (bb (rest y)))))] (bb (rest lines))))
+;;
+
+; GCD greatest common divisor "jumping bunnies"
+(do (read-line) (defn gcd [x y] (if (= 0 (mod x y)) y (gcd y (mod x y))))
+(defn aa [n x] (if (not (empty? x)) 
+(let [m (first x)] (aa (* (/ n (gcd n m)) m) (rest x)))
+n) ) 
+(aa 1 (map (fn [x] (Long. x)) (clojure.string/split (read-line) #" "))))
+;;
+
+; remove duplicate characters from a string ,
+; restated = accumulate unique characters from string
+(do (defn blah [x y] (if (= 0 (count y)) x (let [z (subs y 0 1)] (blah (concat x z) (clojure.string/replace y (re-pattern z) ""))))) (clojure.string/join (blah '() (read-line))))
+;;
+
+; string mingling - interleave two equal length strings
+(let [p (read-line) q (read-line)] (clojure.string/join (map (fn [x y] (str x y)) p q)))
+;;
+
+; swap each successive pair
+(let [n (Integer. (read-line))] (dotimes [_ n] (println (clojure.string/join (map (fn [x] (str (last x) (first x))) (partition 2 (read-line) ))) )))
+;;
+
+; superdigit
+; the hard way as numbers
+(defn radix-enc [y x] (if (= x 0) y (let [n (- (count (str x)) 1) e (.pow (biginteger 10) n) ] (radix-enc (concat y (list (int (quot x e)))) (mod x e)) )))
+(defn superd [x] (if (= 1 (count (str x))) x (superd (apply + (radix-enc '() x)))))
+(superd (Integer. (clojure.string/join (repeat 3 (str 148)))))
+(let [i (clojure.string/split (read-line) #" ") n (first i) k (last i)] (superd (Integer. (clojure.string/join (repeat (Integer. k) n)))))
+; better way as strings
+; instead of "(Integer. (str x))" to convert a character digit to a string
+; to an integer , "(- (int x) 48))" for Ascii but nonportable
+; to cast the character digit to an int then substract the value of
+; character digit zero x30 .
+(do (defn sumdig [y] (apply + (map (fn [x] (Integer. (str x))) y)))
+(defn superd [x] (if (= 1 (count x)) x (superd (str (sumdig x)))))
+(println (Integer. (superd (str (let [i (clojure.string/split (read-line) #" ") n (first i) k (last i)] (apply + (repeat (Integer. k) (sumdig n))))))))
+)
+;;
+
+; fibonacci that extends a memo
+(defn fib [fibmem fibct] (let [fibcnt (count fibmem)] (if (<= fibct fibcnt) fibmem (fib (conj fibmem (+ (bigint (get fibmem (- fibcnt 1))) (get fibmem (- fibcnt 2)))) fibct))))
+(defn getmod [x n] (int (mod (get x n) 100000007)))
+(defn readfib [x n cnt item] (if (= cnt n) (println (getmod x item)) (do (println (getmod x item)) (let [m (Integer. (read-line))] (readfib (fib x (+ m 1)) n (+ cnt 1) m)))))
+(let [n (Integer. (read-line))] (let [m (Integer. (read-line))] (readfib (fib '[0 1 1] (+ m 1)) n 1 m)))
+(fib '[0 1 1] 10)
+[0 1 1 2 3 5 8 13 21 34]
+;;
+
+; pentagonal numbers
+; m[n-1] + 2n + (n-2)
+(defn pent [pentmem pentct] (let [pentcnt (count pentmem)] (if (<= pentct pentcnt) pentmem (pent (conj pentmem (+ (long (get pentmem (- pentcnt 1))) (+ (* 2 (+ pentcnt 1)) (- pentcnt 1)))) pentct))))
+(defn readpent [x n cnt item] (if (= cnt n) (println (get x (- item 1))) (do (println (get x (- item 1))) (let [m (Integer. (read-line))] (readpent (pent x (+ m 1)) n (+ cnt 1) m)))))
+(let [n (Integer. (read-line))] (let [m (Integer. (read-line))] (readpent (pent '[1] m ) n 1 m)))
+;;
+
+; flipping bits
+(let [n (Integer. (read-line))] (dotimes [_ n] (println (bit-xor 4294967295 (Long. (read-line))))))
+;;
+
+; alternating characters
+(let [n (Integer. (read-line))] (dotimes [_ n] (let [x (read-line)] (println (- (count x) (count (clojure.string/replace  (clojure.string/replace x (re-pattern #"(A{2,})") "A") (re-pattern #"(B{2,})") "B")))))))
+;;
+
+; arrays and sorting tutorial intro
+; search a sorted vector
+(defn a []
+(let [v (Integer. (read-line)) 
+n (Integer. (read-line)) 
+ar (mapv (fn [y] (Integer. y)) (clojure.string/split (read-line) #" "))] 
+(defn bs [needle lo hi] 
+(let [item2 (quot (+ 1 (+ hi lo)) 2) x (get ar item2)] 
+(cond
+ (= needle x) item2
+ (and (not= needle x) (= lo hi)) -1
+ (< needle x) (bs v lo (- item2 1))
+ (> needle x) (bs v (min hi(+ item2 1)) hi))))
+(println (bs v 0 (- n 1))))
+)
+;;
+
+; handshake
+(defn a []
+(let [n (vec (reductions + (range 1000000))) t (Integer. (read-line))]
+(dotimes [_ t] (println (get n (- (Integer. (read-line)) 1))))
+)
+)
+;;
+
+; connecting towns
+(defn a []
+(let [t (Integer. (read-line))]
+(dotimes [_ t] (read-line) 
+(println 
+(long (mod (reduce * (mapv (fn [y] (bigint (Integer. y)))
+(clojure.string/split (read-line) #" "))) 1234567))))
+)
+)
+;;
+
+; practice regex - latitude,longitude
+grep -E '\([+-]?(([0-9]|[1-8][0-9])(\.[0-9]+)?|90(\.0+)?), [+-]?(([0-9]|[1-9][0-9]|1[0-7][0-9])(\.[0-9]+)?|180(\.0+)?)\)'
+;;
+
+; practice regex - comments
+awk '/\/\// { print substr($0,index($0,"//"))};/\/\*/,/\*\// { sub(/^ */,null);print }'
+;;
+
+; algorithm programming practice challenges
+; algorithms - graph theory - quickest way up - snakes and ladders
+; explore each path 
+; 
+; 
+(defn hops [x3 nl3 s3]
+(let [
+_ (#_ (println "x3=" x3 "nl3=" nl3))
+x4 (let [s4 (map (fn [m] (first m)) s3)]
+; exclude snakes
+(last (filter (fn [q] (= -1 (.indexOf s4 q)) ) 
+; exclude >100 and >nl3
+(filter (fn [p] (and (<= p nl3) (< p 101))) 
+; six possible targets 
+(map (fn [n] (+ x3 n)) (range 1 7)))))
+)]
+(+ 1
+(if (or (= x4 nl3) (= x4 100)) 0
+(hops x4 nl3 s3)))
+)
+)
+
+
+(defn race [l1 s1]
+(letfn [
+(go-space2 [x nl l2 s2]
+(let [_ (#_ (println "x=" x "nl=" nl))]
+(if (or (nil? nl) (empty? nl)) (hops x 100 s2)
+(+ (hops x (first nl) s2) (go-space (second nl) l2 s2)))
+)
+)
+(go-space [x l2 s2]
+;next ladder , hops to nl plus future ladders
+(let [_ (#_ (println "x=" x))
+nls (filter (fn [y] (< x (first y))) l2) ]
+(if (empty? nls) (go-space2 x nls l2 s2)
+(apply min (map (fn [nl] (go-space2 x nl l2 s2)) nls)))
+)
+)
+]
+(println (go-space 1 l1 s1))
+)
+)
+(defn do-pairs [p]
+(sort-by (fn [v] (first v)) (mapv (fn [y] 
+(map (fn [w] (Integer. w)) (clojure.string/split y #","))) 
+(clojure.string/split p #" ")))
+)
+(defn a []
+(let [t (Integer. (read-line))]
+(dotimes [_ t] (read-line) 
+(let [ladders (do-pairs (read-line)) snakes (do-pairs (read-line))]
+(race ladders snakes)
+))))
+;;
+
+; algorithms - dynamic programming - maximum subarry
+(defn max-sub [x]
+(let [y (vec (for [n (range (count x)) m (range (- (count x) n))] 
+(subvec x n (+ 1 (+ m n)))))
+z (map (fn [p] (apply + p)) y)
+w (y (.indexOf z (apply max z)))
+]
+(println (apply + w) 
+(apply + (filterv (fn [p] (< 0 p)) w))
+)
+)
+)
+(defn max-sub2 [x]
+; b (vec (for [n (range (count x))] (subvec x n)))
+; (let [c (mapv (fn [k] (reductions + (subvec x k))) (range (count x)))
+(let [c (vec (reverse (reductions + (reverse x))))
+d (mapv (fn [j] (apply max j)) c)
+e (apply max d)
+f (.indexOf d e)
+g (apply + (filterv (fn [p] (< 0 p)) (subvec x f)))
+]
+(println e g)
+)
+)
+(defn a []
+(let [t (Integer. (read-line))]
+(dotimes [_ t] (read-line)
+(let [q (mapv (fn [y] (Long. y))
+(clojure.string/split (read-line) #" "))]
+(if (empty? (filterv (fn [p] (< 0 p)) q))
+(let [qq (apply max q)] (println qq qq))
+(max-sub2 q))
+)
+)))
+;;
